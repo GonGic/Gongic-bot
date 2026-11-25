@@ -1,0 +1,17 @@
+{
+  "name": "gongic",
+  "version": "1.0.0",
+  "description": "Registro de horas en voz de los colaboradores del servidor de Discord",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "start": "node --env-file=.env index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "mongodb": "^7.7.0"
+  }
+}

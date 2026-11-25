@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Solo cuando el PR se fusionó (no cuando se cerró sin fusionar)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --omit=dev
+
+      - name: Revisar sintaxis
+        run: for f in *.js; do node --check "$f"; done
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      API_URL: https://bot-hosting.net/api/v1
+      API_KEY: ${{ secrets.BOT_HOSTING_API_KEY }}
+      DEPLOYMENT_ID: ${{ secrets.BOT_HOSTING_DEPLOYMENT_ID }}
+    steps:
+      - name: Bajar el código en bot-hosting.net
+        run: |
+          curl --silent --show-error --fail-with-body --max-time 120 --retry 3 \
+            --request POST "$API_URL/deployments/$DEPLOYMENT_ID/sync" \
+            --header "Authorization: Bearer $API_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}'
+
+      - name: Verificar que el bot quedó encendido
+        run: |
+          # Justo después del sync el estado puede pasar por offline o seguir en running con el
+          # proceso anterior: se exigen dos lecturas seguidas en running, ya sin trabajo pendiente.
+          seguidas=0
+          respuesta='{}'
+          for intento in $(seq 1 10); do
+            respuesta=$(curl --silent --show-error --fail-with-body --max-time 60 --retry 3 \
+              "$API_URL/deployments/$DEPLOYMENT_ID/logs?size=50&waitSeconds=20" \
+              --header "Authorization: Bearer $API_KEY")
+            estado=$(jq -r '.state' <<< "$respuesta")
+            pendiente=$(jq -r '.settled == false' <<< "$respuesta")
+            echo "Lectura $intento: state=$estado"
+            if [ "$estado" = "running" ] && [ "$pendiente" = "false" ]; then
+              seguidas=$((seguidas + 1))
+            else
+              seguidas=0
+            fi
+            [ "$seguidas" -ge 2 ] && break
+          done
+          echo "--- Últimas líneas del log ---"
+          jq -r '.lines[]?' <<< "$respuesta"
+          if [ "$seguidas" -lt 2 ]; then
+            echo "::error::El bot no quedó encendido (state=$estado). Si estaba apagado antes del deploy, enciéndelo desde el panel."
+            exit 1
+          fi
