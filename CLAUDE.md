@@ -28,7 +28,7 @@ Bot del servidor **Gon Dev's** (el mismo de Gon Coins) del profesor Gon161. Regi
 - **Sesión:** abre al entrar a un canal que cuenta y cierra al salir. Moverse entre canales que cuentan no la corta (se muestra el canal inicial). Sin pausas: silenciado o ensordecido cuenta.
 - **Medianoche:** la sesión se parte; cada día suma su parte. El tramo cortado muestra `00:00` de inicio o `23:59` de fin.
 - **Bot apagado:** al encender, quien sigue en voz continúa su sesión (se cuenta el hueco). Quien ya no está se cierra a la hora de encendido. Quien está sin sesión abierta recibe una desde ese momento.
-- **`/mis-horas dia|semana|mes [fecha]`** (efímero, en **embed** al estilo del bot de referencia): color por rol de la persona consultada (SS verde, Programador azul, PM morado). Todo va en la descripción con etiquetas en negritas (`**Sesión 1** (CANAL)`, `Tiempo activo: **53m**`, `---`, `**Total horas trabajadas:** …`) y el pie lleva "Zona horaria: MX" (en la semana, "Semana del dd/mm al dd/mm (MX)"). Si es SS, se agrega un campo con barra de 10 bloques (▰▱), porcentaje y lo que falta. `horas.js` devuelve `{ titulo, descripcion, campos, pie }` e `index.js` arma el embed.
+- **`/mis-horas dia|semana|mes [fecha]`** (efímero, en **embed**): color por rol de la persona consultada (SS verde, Programador azul, PM morado). Título con emoji (🕒 día, 📆 semana, 🗓️ mes). Pie común `GonGic · Zona horaria MX` (`horas.PIE`). Si es SS, se agrega el campo 🎓 Servicio social con barra de 10 bloques (▰▱), porcentaje, acumulado y lo que falta. `horas.js` devuelve `{ titulo, descripcion, campos, pie }` e `index.js` arma el embed.
   - `dia`: sesiones con inicio, fin ("en curso" si sigue abierta) y tiempo activo; total, sesiones y zona horaria. Sin datos: "No hay registro para ese día".
   - `semana`: lunes a domingo de la semana de la fecha; días vacíos "Sin actividad"; total semanal.
   - `mes`: todos los días del mes de la fecha (vacíos "Sin actividad"); total, días con actividad y promedio entre los días con actividad.
@@ -38,13 +38,17 @@ Bot del servidor **Gon Dev's** (el mismo de Gon Coins) del profesor Gon161. Regi
   - Meta de 480 h (`config.metaServicioHoras`). Acumulado = todas las sesiones (las abiertas hasta ahora) + ajustes, nunca negativo. Al pasarla se marca completado y se sigue registrando.
   - `/mis-horas` y `/horas-de` agregan al final `Servicio social: X / 480h (N%) · Faltan Y` si la persona es SS.
   - `/servicio-social progreso` (SS): acumulado, faltante, primera sesión, fecha de completado y ajustes.
-  - `/servicio-social lista` (ADMIN y PM): todos los SS ordenados por avance.
+  - `/servicio-social lista` (ADMIN y PM): todos los SS en **orden alfabético** (no es una competencia: sin medallas ni lugares), cada uno con su barra, porcentaje, acumulado y lo que falta; campos de completados y en servicio.
   - `/servicio-social ajustar usuario horas motivo [minutos]` (solo ADMIN): con negativos para restar; se rechaza si deja el total bajo 0. Los ajustes **solo** cuentan para el servicio, no en día/semana/mes.
   - Aviso al completar (DM al SS y mensaje en `CANAL_AVISOS_ID`), una sola vez gracias a `servicio_social`. Se revisa al cerrar sesión, al ajustar y cada minuto para sesiones abiertas. Si un ajuste lo baja de la meta, se borra la marca y se volverá a avisar.
 - Programador y PM: sin meta.
 - **`/limpiar [canal]`** (solo ADMIN): borra todos los mensajes de un canal de texto, anuncios o chat de voz (por defecto el actual), incluidos los fijados. Pide confirmación con botón (expira en 2 min). Borra en bloque los de menos de 14 días y uno por uno los más viejos; el canal no se recrea (mismo ID). Muestra avance cada 10 s, y si el mensaje privado ya expiró (15 min) avisa por DM. Si una vuelta no logra borrar nada, se detiene. Requiere que el bot tenga Ver canal, Leer el historial y Gestionar mensajes en ese canal.
 - Duraciones: `53m`, `8h 5m`, `11h` (minutos truncados, sumando milisegundos).
-- **Todas las respuestas y avisos son embeds** (`armarEmbed` en `index.js` a partir de `{ titulo?, descripcion, campos?, pie? }` de `horas.js`), con etiquetas en negritas. Colores: por rol en horas y progreso, verde SS en lista/ajuste/avisos, azul en `/canales` y rojo en errores (`⚠️ …`). Los ajustes en `/servicio-social progreso` muestran los últimos 10 (un campo admite 1,024 caracteres).
+- **Todas las respuestas y avisos son embeds** (`armarEmbed` en `index.js` a partir de `{ titulo?, descripcion, campos?, pie? }` de `horas.js`; si no hay `pie`, usa `horas.PIE`). Estilo (rama `rediseno`): títulos con emoji, datos clave en **campos** lado a lado (totales, sesiones, días con actividad, promedio, acumulado, faltan, inicio) y barras ▰▱ (`horas.barra`).
+  - Día: cada sesión `🎙️ Sesión N · canal` y `🟢 inicio → 🔴 fin (o ⏳ en curso) ⏱️ tiempo`.
+  - Semana: una línea por día con barra relativa al día con más horas; vacíos `Sin actividad`.
+  - Mes: dos columnas (1-15 y 16-fin) con el tiempo de cada día; vacíos `Sin actividad`.
+  - Colores: por rol en horas y progreso, verde SS en lista/ajuste/avisos, azul en `/canales` y `/limpiar`, rojo en errores (`⚠️ …`). Los ajustes en `/servicio-social progreso` muestran los últimos 10 (un campo admite 1,024 caracteres).
 
 ## Colecciones
 | Colección | Contenido |

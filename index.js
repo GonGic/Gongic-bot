@@ -104,7 +104,7 @@ function armarEmbed(datos, color) {
   const e = new EmbedBuilder().setColor(color).setDescription(datos.descripcion.slice(0, 4096)).setTimestamp();
   if (datos.titulo) e.setTitle(datos.titulo);
   if (datos.campos?.length) e.addFields(datos.campos);
-  if (datos.pie) e.setFooter({ text: datos.pie });
+  e.setFooter({ text: datos.pie ?? horas.PIE });
   return e;
 }
 
@@ -184,11 +184,11 @@ async function manejarComando(i) {
       if (sub === 'lista') {
         const lista = await db.listarCanales();
         return responder(i, {
-          titulo: 'Canales de trabajo',
+          titulo: '🎙️ Canales de trabajo',
           descripcion: lista.length
-            ? lista.map((c) => `• <#${c._id}> (\`${c._id}\`)`).join('\n')
-            : 'No hay canales. Agrégalos con `/canales agregar`.',
-          pie: `${lista.length} ${lista.length === 1 ? 'canal' : 'canales'} donde se cuentan las horas`,
+            ? lista.map((c) => `🔊 <#${c._id}>\n╰ \`${c._id}\``).join('\n\n')
+            : '💤 No hay canales. Agrégalos con `/canales agregar`.',
+          campos: [{ name: '📋 Total', value: `**${lista.length}** ${lista.length === 1 ? 'canal' : 'canales'} donde se cuentan las horas`, inline: false }],
         }, COLOR_BOT);
       }
       const canal = i.options.getChannel('canal');
@@ -198,7 +198,7 @@ async function manejarComando(i) {
       if (!cambio) return error(i, sub === 'agregar' ? `${canal} ya estaba en la lista.` : `${canal} no estaba en la lista.`);
       return responder(i, {
         titulo: sub === 'agregar' ? '✅ Canal agregado' : '🗑️ Canal quitado',
-        descripcion: sub === 'agregar' ? `Ahora se cuentan las horas en ${canal}.` : `${canal} ya no cuenta para las horas.`,
+        descripcion: sub === 'agregar' ? `🔊 Ahora se cuentan las horas en ${canal}.` : `🔇 ${canal} ya no cuenta para las horas.`,
       }, COLOR_BOT);
     }
 
@@ -214,8 +214,8 @@ async function manejarComando(i) {
       return i.reply({
         embeds: [armarEmbed({
           titulo: '🧹 ¿Borrar todos los mensajes?',
-          descripcion: `Se borrarán **TODOS** los mensajes de ${canal}, incluidos los fijados.\n\n**No se puede deshacer.**`,
-          pie: `Tienes ${LIMPIAR_EXPIRA_MIN} minutos para confirmar`,
+          descripcion: `Se borrarán **TODOS** los mensajes de ${canal}, incluidos los fijados.\n\n⚠️ **No se puede deshacer.**`,
+          pie: `⌛ Tienes ${LIMPIAR_EXPIRA_MIN} minutos para confirmar · GonGic`,
         }, COLOR_ERROR)],
         components: [botones],
         flags: EF,
@@ -241,12 +241,12 @@ function permisosFaltantes(canal) {
 // Botones de confirmación. Solo quien pidió /limpiar los ve, porque la respuesta es privada.
 async function botonLimpiar(i) {
   if (i.customId === 'limpiar:cancelar') {
-    return i.update({ embeds: [armarEmbed({ descripcion: 'Cancelado. No se borró nada.' }, COLOR_OTRO)], components: [] });
+    return i.update({ embeds: [armarEmbed({ titulo: '↩️ Cancelado', descripcion: 'No se borró nada.' }, COLOR_OTRO)], components: [] });
   }
   const [, , canalId, creado] = i.customId.split(':');
   if (!roles.esAdmin(i.member)) return error(i, 'Solo ADMIN puede limpiar canales.');
   if (Date.now() - Number(creado) > LIMPIAR_EXPIRA_MIN * 60_000) {
-    return i.update({ embeds: [armarEmbed({ descripcion: '⌛ La confirmación expiró. Usa `/limpiar` otra vez.' }, COLOR_OTRO)], components: [] });
+    return i.update({ embeds: [armarEmbed({ titulo: '⌛ Confirmación expirada', descripcion: 'Usa `/limpiar` otra vez.' }, COLOR_OTRO)], components: [] });
   }
   const canal = await client.channels.fetch(canalId).catch(() => null);
   if (!canal) return i.update({ embeds: [armarEmbed({ descripcion: '⚠️ Ese canal ya no existe.' }, COLOR_ERROR)], components: [] });
@@ -277,13 +277,14 @@ async function botonLimpiar(i) {
       }
       if (Date.now() - progreso > 10_000) { // avance cada 10 s
         progreso = Date.now();
-        await i.editReply({ embeds: [armarEmbed({ titulo: '🧹 Limpiando…', descripcion: `${canal}: **${borrados}** mensajes borrados hasta ahora.` }, COLOR_BOT)] }).catch(() => {});
+        await i.editReply({ embeds: [armarEmbed({ titulo: '🧹 Limpiando…', descripcion: `Borrando los mensajes de ${canal}.`, campos: [{ name: '🗑️ Borrados hasta ahora', value: `**${borrados}**`, inline: true }] }, COLOR_BOT)] }).catch(() => {});
       }
     }
     // El mensaje privado del comando solo se puede editar 15 minutos; si ya expiró, se avisa por DM.
     const fin = armarEmbed({
       titulo: '✅ Canal limpio',
-      descripcion: `Se borraron **${borrados}** mensajes de ${canal}.${sinBorrar ? `\n⚠️ Quedaron ${sinBorrar} que Discord no deja borrar.` : ''}`,
+      descripcion: `${canal} quedó limpio.${sinBorrar ? `\n⚠️ Quedaron **${sinBorrar}** que Discord no deja borrar.` : ''}`,
+      campos: [{ name: '🗑️ Mensajes borrados', value: `**${borrados}**`, inline: true }],
     }, COLOR_BOT);
     await i.editReply({ embeds: [fin] }).catch(() => i.user.send({ embeds: [fin] }).catch(() => {}));
   } catch (e) {
